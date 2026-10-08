@@ -1,0 +1,24 @@
+# Secrets and local settings
+.env
+local.settings.json
+*.pem
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Azure Functions local artifacts
+.python_packages/
+bin/
+obj/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

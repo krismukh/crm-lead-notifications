@@ -1,0 +1,6 @@
+# Runtime dependencies for the Function App (pinned in Phase 2)
+azure-functions
+azure-storage-blob
+azure-servicebus
+azure-identity
+requests
