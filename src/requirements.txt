@@ -1,0 +1,4 @@
+azure-functions==1.23.0
+azure-identity==1.26.0
+azure-storage-blob==12.31.0
+azure-servicebus==7.15.0

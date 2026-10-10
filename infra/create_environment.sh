@@ -40,6 +40,18 @@ MY_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
 log "Subscription $SUBSCRIPTION_ID, location $LOCATION"
 
 # ----------------------------------------------------------------------------
+# 0. Resource providers (a subscription that has never hosted a web app lacks Microsoft.Web)
+# ----------------------------------------------------------------------------
+log "0. Resource providers"
+for ns in Microsoft.Storage Microsoft.ServiceBus Microsoft.KeyVault Microsoft.OperationalInsights Microsoft.Insights Microsoft.Web; do
+  state=$(az provider show -n "$ns" --query registrationState -o tsv 2>/dev/null || echo Unknown)
+  if [[ "$state" == "Registered" ]]; then skip "$ns"; else
+    printf '    registering %s\n' "$ns"
+    az provider register --namespace "$ns" --wait --only-show-errors >/dev/null
+  fi
+done
+
+# ----------------------------------------------------------------------------
 # Slack webhook URL (stored in Key Vault, never written to disk)
 # ----------------------------------------------------------------------------
 if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then

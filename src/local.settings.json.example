@@ -1,0 +1,20 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "STORAGE_ACCOUNT_URL": "https://stcrmleadskcm.blob.core.windows.net",
+    "SOURCE_CONTAINER": "source",
+    "TARGET_CONTAINER": "target",
+    "SERVICEBUS_FQDN": "sb-crmleads-kcm.servicebus.windows.net",
+    "ServiceBusConnection__fullyQualifiedNamespace": "sb-crmleads-kcm.servicebus.windows.net",
+    "SERVICEBUS_QUEUE": "sbq-lead-delay",
+    "LEAD_OWNER_BASE_URL": "https://dea-lead-owner.s3.us-east-1.amazonaws.com",
+    "DELAY_MINUTES": "10",
+    "RETRY_INTERVAL_MINUTES": "5",
+    "MAX_LOOKUP_ATTEMPTS": "4",
+    "VERIFY_SIGNATURE": "false",
+    "SLACK_WEBHOOK_URL": "",
+    "CLOSE_WEBHOOK_SIGNATURE_KEY": ""
+  }
+}

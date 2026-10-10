@@ -19,6 +19,8 @@ proposal (v1.0, October 7, 2026).
 | 10 | 2026-10-07 | Plan carries no calendar dates; phases are listed in execution order. | Final phase depends on the CRM team and lead activity. | Accepted |
 | 11 | 2026-10-09 | Lead-owner files in `dea-lead-owner` are retained for one day only; S3 answers AccessDenied (403) for an expired or absent object. The enricher treats 403 and 404 alike as "not available" and applies the retry rule. Replayed dead-letter messages older than a day are processed as Unassigned. | CRM team confirmed the bucket is public, the HTTP URL pattern is unchanged, and files expire after one day. | Confirmed |
 | 12 | 2026-10-09 | A second storage account `stcrmleadsfnkcm` holds the Functions runtime state; the data lake account keeps its hierarchical namespace. | The Functions host does not support hierarchical-namespace accounts for `AzureWebJobsStorage`. | Decided |
+| 13 | 2026-10-09 | The Functions project root is `src/` (`function_app.py` beside `host.json`), with application code in `src/leadflow/`; the proposal's `src/functions/` folder is dropped. | The Functions host requires the entry point at the project root; one package avoids path manipulation. | Decided |
+| 14 | 2026-10-09 | The receiver route keeps function-key authorization (`?code=`) even after signature verification is enabled. | Two independent controls on a public endpoint; the key is part of the subscription URL and costs nothing. | Decided |
 
 ## Open items
 

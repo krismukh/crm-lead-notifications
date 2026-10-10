@@ -22,3 +22,6 @@ obj/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Deployment packages
+*.zip

@@ -12,8 +12,8 @@ Author: Krishna C. Mukherjee
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Preparation: Slack channel and webhook, repository, decision log, sample data | Complete |
-| 1 | Environment: `infra/create_environment.sh` | In progress |
-| 2 | Webhook receiver function | Not started |
+| 1 | Environment: `infra/create_environment.sh` | Complete |
+| 2 | Webhook receiver function | In progress |
 | 3 | Enrichment and notification function | Not started |
 | 4 | CI/CD, observability, README | Not started |
 | 5 | Webhook subscription and validation with test leads | Not started |
@@ -38,8 +38,8 @@ docs/                Proposal, diagram, decision log, samples, validation report
 docs/samples/        Sample webhook events and lead-owner record from the brief
 infra/               Azure CLI environment script (Phase 1)
 scripts/             Operational and test scripts
-src/functions/       Azure Functions entry point (function_app.py)
-src/leadflow/        Application modules: verify, storage, queue, lookup, enrich, notify
+src/                 Azure Functions project root: function_app.py, host.json, requirements.txt
+src/leadflow/        Application modules: config, models, verify, storage, delay_queue, receiver, logs
 tests/               pytest unit tests
 ```
 
@@ -54,6 +54,11 @@ copy .env.example .env      # then fill in the values
 
 Secrets are never committed. `.env` and `local.settings.json` are ignored by git; in Azure
 the same values come from Key Vault references on the Function App.
+
+## Deployment
+
+`infra/deploy_function.sh` zip-deploys `src/` with a remote build and prints the webhook URL.
+See `docs/phase2_receiver.md` for the smoke test.
 
 ## Azure environment
 
