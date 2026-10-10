@@ -11,8 +11,8 @@ Author: Krishna C. Mukherjee
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Preparation: Slack channel and webhook, repository, decision log, sample data | In progress |
-| 1 | Environment: `infra/create_environment.sh` | Not started |
+| 0 | Preparation: Slack channel and webhook, repository, decision log, sample data | Complete |
+| 1 | Environment: `infra/create_environment.sh` | In progress |
 | 2 | Webhook receiver function | Not started |
 | 3 | Enrichment and notification function | Not started |
 | 4 | CI/CD, observability, README | Not started |
@@ -54,6 +54,11 @@ copy .env.example .env      # then fill in the values
 
 Secrets are never committed. `.env` and `local.settings.json` are ignored by git; in Azure
 the same values come from Key Vault references on the Function App.
+
+## Azure environment
+
+`infra/create_environment.sh` creates all resources from Azure Cloud Shell; `infra/verify_environment.sh`
+prints their state. See `docs/phase1_environment.md`.
 
 ## Phase 0 check: Slack webhook
 
