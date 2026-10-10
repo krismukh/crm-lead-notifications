@@ -1,9 +1,8 @@
 """Post a sample Close webhook event to the receiver.
 
 Examples
-    # deployed endpoint; the function key comes from the portal or `az functionapp keys list`
-    python scripts/send_test_event.py --sample 2 \
-        --url "https://func-crmleads-kcm.azurewebsites.net/api/crm?code=..."
+    # deployed endpoint, with FUNCTION_URL and FUNCTION_KEY taken from .env
+    python scripts/send_test_event.py --sample 2
 
     # same, but with a fresh lead_id so a new source file and message are created
     python scripts/send_test_event.py --url "..." --sample 2 --fresh
@@ -50,7 +49,9 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--url", required=True, help="receiver URL, including ?code= for a deployed app"
+        "--url",
+        default=None,
+        help="receiver URL; defaults to FUNCTION_URL from .env, with FUNCTION_KEY appended",
     )
     parser.add_argument("--sample", choices=["1", "2"], default="2")
     parser.add_argument(
@@ -66,6 +67,13 @@ def main() -> int:
     args = parser.parse_args()
 
     load_dotenv(REPO_ROOT / ".env")
+    url = args.url or os.environ.get("FUNCTION_URL", "")
+    if not url:
+        print("No URL: pass --url or set FUNCTION_URL in .env", file=sys.stderr)
+        return 2
+    key = os.environ.get("FUNCTION_KEY", "")
+    if key and "code=" not in url:
+        url += ("&" if "?" in url else "?") + "code=" + key
     event = json.loads(
         (SAMPLES / f"webhook_body_sample_{args.sample}.json").read_text(encoding="utf-8")
     )
@@ -84,18 +92,18 @@ def main() -> int:
     headers = {"Content-Type": "application/json", "User-Agent": "Close Webhooks 2.0 (test)"}
 
     if args.sign:
-        key = args.key or os.environ.get("CLOSE_WEBHOOK_SIGNATURE_KEY", "")
-        if not key:
+        sig_key = args.key or os.environ.get("CLOSE_WEBHOOK_SIGNATURE_KEY", "")
+        if not sig_key:
             print(
                 "No signature key: pass --key or set CLOSE_WEBHOOK_SIGNATURE_KEY", file=sys.stderr
             )
             return 2
         ts = str(int(time.time()))
         headers["Close-Sig-Timestamp"] = ts
-        headers["Close-Sig-Hash"] = compute_signature(key, ts, body)
+        headers["Close-Sig-Hash"] = compute_signature(sig_key, ts, body)
 
-    print(f"POST {args.url.split('?')[0]}  lead_id={event['event']['lead_id']}  signed={args.sign}")
-    request = urllib.request.Request(args.url, data=body, headers=headers, method="POST")
+    print(f"POST {url.split('?')[0]}  lead_id={event['event']['lead_id']}  signed={args.sign}")
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=30) as response:

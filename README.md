@@ -9,26 +9,26 @@ Author: Krishna C. Mukherjee
 
 ## Status
 
-| Phase | Scope | Status |
-|---|---|---|
-| 0 | Preparation: Slack channel and webhook, repository, decision log, sample data | Complete |
-| 1 | Environment: `infra/create_environment.sh` | Complete |
-| 2 | Webhook receiver function | In progress |
-| 3 | Enrichment and notification function | Not started |
-| 4 | CI/CD, observability, README | Not started |
-| 5 | Webhook subscription and validation with test leads | Not started |
+|Phase|Scope|Status|
+|-|-|-|
+|0|Preparation: Slack channel and webhook, repository, decision log, sample data|Complete|
+|1|Environment: `infra/create\_environment.sh`|Complete|
+|2|Webhook receiver function|Complete|
+|3|Enrichment and notification function|Not started|
+|4|CI/CD, observability, README|Not started|
+|5|Webhook subscription and validation with test leads|Not started|
 
 ## Architecture
 
-![Architecture](docs/CRM_Lead_Pipeline_Architecture.png)
+!\[Architecture](docs/CRM\_Lead\_Pipeline\_Architecture.png)
 
 Close CRM posts a `lead.created` event to an HTTP-triggered Azure Function, which verifies
-the signature, writes the event to the `source` container as `crm_event_{lead_id}.json`,
+the signature, writes the event to the `source` container as `crm\_event\_{lead\_id}.json`,
 and schedules a Service Bus message for ten minutes later. When the message becomes
-visible, a second function reads the event, fetches `{lead_id}.json` from the public
-lead-owner bucket, merges the two records on `lead_id`, writes
-`crm_lead_enriched_{lead_id}.json` to the `target` container, and posts a New Lead Alert
-to Slack. The full design is in `docs/CRM_Lead_Processing_Architecture_Proposal.docx`.
+visible, a second function reads the event, fetches `{lead\_id}.json` from the public
+lead-owner bucket, merges the two records on `lead\_id`, writes
+`crm\_lead\_enriched\_{lead\_id}.json` to the `target` container, and posts a New Lead Alert
+to Slack. The full design is in `docs/CRM\_Lead\_Processing\_Architecture\_Proposal.docx`.
 
 ## Repository layout
 
@@ -38,8 +38,8 @@ docs/                Proposal, diagram, decision log, samples, validation report
 docs/samples/        Sample webhook events and lead-owner record from the brief
 infra/               Azure CLI environment script (Phase 1)
 scripts/             Operational and test scripts
-src/                 Azure Functions project root: function_app.py, host.json, requirements.txt
-src/leadflow/        Application modules: config, models, verify, storage, delay_queue, receiver, logs
+src/                 Azure Functions project root: function\_app.py, host.json, requirements.txt
+src/leadflow/        Application modules: config, models, verify, storage, delay\_queue, receiver, logs
 tests/               pytest unit tests
 ```
 
@@ -47,7 +47,7 @@ tests/               pytest unit tests
 
 ```
 python -m venv .venv
-.venv\Scripts\activate
+.venv\\Scripts\\activate
 pip install -r requirements-dev.txt
 copy .env.example .env      # then fill in the values
 ```
@@ -57,21 +57,22 @@ the same values come from Key Vault references on the Function App.
 
 ## Deployment
 
-`infra/deploy_function.sh` zip-deploys `src/` with a remote build and prints the webhook URL.
-See `docs/phase2_receiver.md` for the smoke test.
+`infra/deploy\_function.sh` zip-deploys `src/` with a remote build and prints the webhook URL.
+See `docs/phase2\_receiver.md` for the smoke test.
 
 ## Azure environment
 
-`infra/create_environment.sh` creates all resources from Azure Cloud Shell; `infra/verify_environment.sh`
-prints their state. See `docs/phase1_environment.md`.
+`infra/create\_environment.sh` creates all resources from Azure Cloud Shell; `infra/verify\_environment.sh`
+prints their state. See `docs/phase1\_environment.md`.
 
 ## Phase 0 check: Slack webhook
 
-After creating the Slack channel and incoming webhook (see `docs/phase0_setup.md`):
+After creating the Slack channel and incoming webhook (see `docs/phase0\_setup.md`):
 
 ```
-python scripts/test_slack_webhook.py
+python scripts/test\_slack\_webhook.py
 ```
 
 This posts a sample New Lead Alert, built from the sample data in the brief, to the
 channel. A `200 ok` response and a visible message confirm the webhook.
+
