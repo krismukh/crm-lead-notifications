@@ -34,6 +34,7 @@ class Settings:
     retry_interval_minutes: int
     max_lookup_attempts: int
     signature_max_age_seconds: int
+    lead_owner_stub_enabled: bool
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
@@ -54,4 +55,5 @@ class Settings:
             retry_interval_minutes=_int(e.get("RETRY_INTERVAL_MINUTES"), 5),
             max_lookup_attempts=_int(e.get("MAX_LOOKUP_ATTEMPTS"), 4),
             signature_max_age_seconds=_int(e.get("SIGNATURE_MAX_AGE_SECONDS"), 300),
+            lead_owner_stub_enabled=_bool(e.get("LEAD_OWNER_STUB_ENABLED"), False),
         )

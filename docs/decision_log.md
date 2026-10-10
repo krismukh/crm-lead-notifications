@@ -21,6 +21,8 @@ proposal (v1.0, October 7, 2026).
 | 12 | 2026-10-09 | A second storage account `stcrmleadsfnkcm` holds the Functions runtime state; the data lake account keeps its hierarchical namespace. | The Functions host does not support hierarchical-namespace accounts for `AzureWebJobsStorage`. | Decided |
 | 13 | 2026-10-09 | The Functions project root is `src/` (`function_app.py` beside `host.json`), with application code in `src/leadflow/`; the proposal's `src/functions/` folder is dropped. | The Functions host requires the entry point at the project root; one package avoids path manipulation. | Decided |
 | 14 | 2026-10-09 | The receiver route keeps function-key authorization (`?code=`) even after signature verification is enabled. | Two independent controls on a public endpoint; the key is part of the subscription URL and costs nothing. | Decided |
+| 15 | 2026-10-10 | Message completion follows the Functions host default (`autoCompleteMessages: true`): a normal return completes the message, an exception abandons it for redelivery. Idempotency rests on `alert_sent_at_utc` in the target record: a redelivery after a successful alert is skipped; one after a failed alert resends only the alert. | Keeps the function free of manual settlement code while still guaranteeing at most one alert per lead. | Decided |
+| 16 | 2026-10-10 | A test-only HTTP function `fn_lead_owner_stub` serves synthetic owner records for `lead_test*` ids when `LEAD_OWNER_STUB_ENABLED=true`, so the found path can be exercised before real test leads exist. It is disabled in production settings. | Real bucket files exist only for CRM-created leads and for one day. | Decided |
 
 ## Open items
 
