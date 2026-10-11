@@ -16,7 +16,7 @@ Author: Krishna C. Mukherjee
 | 2 | Webhook receiver function | Complete |
 | 3 | Enrichment and notification function | Complete |
 | 4 | CI/CD, observability, operations | Complete |
-| 5 | Webhook subscription and validation with test leads | Not started |
+| 5 | Webhook subscription and validation with test leads | In progress |
 
 ## Architecture
 
@@ -67,7 +67,8 @@ five failed deliveries dead-letter it, and the dead-letter queue raises an alert
 
 ```
 .github/workflows/ci.yml   lint and tests on every push; deploy to Azure on push to main
-docs/                      proposal (.docx), diagram (.drawio, .png), decision log, phase runbooks
+docs/                      proposal (.docx), diagram (.drawio, .png), decision log, phase runbooks,
+                           validation report
 docs/samples/              sample webhook events and lead-owner record from the brief
 infra/                     create_environment.sh, verify_environment.sh, deploy_function.sh,
                            create_monitoring.sh

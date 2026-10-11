@@ -99,8 +99,19 @@ The script creates the action group `ag-crmleads` (e-mail) and two metric alerts
 | `alr-crmleads-failures` | any function invocation ended in an exception in the last 5 minutes | 2 (Warning) |
 | `alr-crmleads-deadletter` | the dead-letter queue of `sbq-lead-delay` holds a message | 1 (Error) |
 
-Azure sends a one-time "You've been added to an action group" e-mail; no action is
-needed. The alerts are visible under **Monitor > Alerts > Alert rules** in the portal.
+Azure sends two e-mails: "You've been added to an action group" (no action needed) and
+"Verify your email for Azure Monitor action group". **The second one requires action**:
+until the address is verified, Azure fires the alerts but withholds the e-mails. Open it
+within 30 minutes, click the link, and enter the code. If the code has expired, request a
+new one by removing and re-adding the receiver:
+
+```
+az monitor action-group update -n ag-crmleads -g rg-crmleads --remove-action owner -o none
+az monitor action-group update -n ag-crmleads -g rg-crmleads --add-action email owner <your e-mail address> -o none
+```
+
+Fired and resolved alerts are listed under **Monitor > Alerts** in the portal (remove the
+"Alert condition : Fired" filter to see resolved ones); rules are under **Alert rules**.
 
 ## Step 5: smoke test the alerts and the replay path
 
@@ -204,7 +215,7 @@ workflow does. Use it when GitHub Actions is unavailable or to deploy a branch.
 - [ ] Secret `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` stored; `publish.xml` deleted
 - [ ] First "CI and deploy" run green; deploy job's health check printed the JSON
 - [ ] `/api/health` still reports `lead_owner_stub_enabled: false` and the bucket URL
-- [ ] `ag-crmleads`, `alr-crmleads-failures`, `alr-crmleads-deadletter` listed by the script
+- [ ] `ag-crmleads`, `alr-crmleads-failures`, `alr-crmleads-deadletter` listed by the script; e-mail address verified
 - [ ] Smoke test: both alert e-mails received; dead-lettered messages replayed; queue clean
 - [ ] Traces for the smoke-test lead show no `Request URL` lines from the Azure SDK
 - [ ] README status: Phase 4 Complete; committed and pushed (the push deploys)
