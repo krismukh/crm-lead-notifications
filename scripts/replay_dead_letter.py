@@ -22,7 +22,7 @@ import json
 import sys
 from datetime import UTC, datetime
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import AzureCliCredential, ChainedTokenCredential, DefaultAzureCredential
 from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSubQueue
 
 NAMESPACE = "sb-crmleads-kcm.servicebus.windows.net"
@@ -44,7 +44,8 @@ def main() -> int:
     parser.add_argument("--queue", default=QUEUE)
     args = parser.parse_args()
 
-    credential = DefaultAzureCredential()
+    # The az login first: Cloud Shell's managed identity cannot issue Service Bus tokens.
+    credential = ChainedTokenCredential(AzureCliCredential(), DefaultAzureCredential())
     seen = replayed = 0
     with ServiceBusClient(args.namespace, credential) as client:
         receiver = client.get_queue_receiver(
