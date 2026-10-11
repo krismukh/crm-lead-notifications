@@ -15,7 +15,7 @@ Author: Krishna C. Mukherjee
 | 1 | Environment: `infra/create_environment.sh` | Complete |
 | 2 | Webhook receiver function | Complete |
 | 3 | Enrichment and notification function | Complete |
-| 4 | CI/CD, observability, operations | In progress |
+| 4 | CI/CD, observability, operations | Complete |
 | 5 | Webhook subscription and validation with test leads | Not started |
 
 ## Architecture
@@ -148,8 +148,8 @@ deploy and prints the webhook URL with its key.
 | Post a test event | workstation: `python scripts\send_test_event.py --fresh --sample 2` |
 | Queue counts and latest blobs | `bash scripts/queue_status.sh` |
 | Show one enriched record | `bash scripts/show_target.sh <lead_id> [unmatched]` |
-| List dead-lettered messages | `python3 scripts/replay_dead_letter.py --dry-run` |
-| Replay dead-lettered messages | `python3 scripts/replay_dead_letter.py` |
+| List dead-lettered messages | workstation: `python scripts\replay_dead_letter.py --dry-run` |
+| Replay dead-lettered messages | workstation: `python scripts\replay_dead_letter.py` |
 | Check configuration | `curl -s https://func-crmleads-kcm.azurewebsites.net/api/health` |
 | Switch signature verification on | `az functionapp config appsettings set ... --settings VERIFY_SIGNATURE=true` |
 

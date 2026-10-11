@@ -38,21 +38,29 @@ Expected: `All checks passed!`, `N files already formatted`, `49 passed`.
 ## Step 2: give GitHub the publish profile (one time)
 
 The deploy job authenticates with the Function App's publish profile, an XML file that
-holds the deployment credentials for this one app (decision 17).
+holds the deployment credentials for this one app (decision 17). Two things must be true
+for it to work: basic publishing credentials must be enabled on the app (new apps have
+them off), and the XML must reach GitHub byte for byte.
 
-1. In Cloud Shell:
+1. Enable basic publishing credentials. In Cloud Shell or PowerShell:
    ```
-   az functionapp deployment list-publishing-profiles -n func-crmleads-kcm -g rg-crmleads --xml > publish.xml
-   download publish.xml
+   az resource update --resource-group rg-crmleads --name scm --namespace Microsoft.Web --resource-type basicPublishingCredentialsPolicies --parent sites/func-crmleads-kcm --set properties.allow=true --query properties.allow
    ```
-   The `download` command saves the file through the browser to the workstation's
-   Downloads folder.
-2. Open `publish.xml` in Notepad, select all, copy.
-3. On GitHub: repository **crm-lead-notifications** > **Settings** > **Secrets and
+   Expected output: `true`.
+2. Download the profile from the portal: open the Function App **func-crmleads-kcm**,
+   and on its **Overview** page click **Get publish profile** in the toolbar. The browser
+   saves `func-crmleads-kcm.PublishSettings` to Downloads.
+   Do not produce the file with `az ... --xml > file` from PowerShell: PowerShell
+   re-encodes the output and the resulting file is unreadable, which the deploy reports
+   as HTTP 401.
+3. Open the downloaded file in Notepad; it must start with `<publishData>`. Select all,
+   copy.
+4. On GitHub: repository **crm-lead-notifications** > **Settings** > **Secrets and
    variables** > **Actions** > **New repository secret**.
    Name: `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`. Secret: paste. **Add secret**.
-4. Delete `publish.xml` from Downloads and from Cloud Shell (`rm publish.xml`). It is a
-   credential; the copy in the GitHub secret is the only one needed.
+   (GitHub may ask for your password first.)
+5. Delete the downloaded file. It is a credential; the copy in the GitHub secret is the
+   only one needed.
 
 ## Step 3: push and watch the first automated deploy
 
@@ -67,21 +75,21 @@ test** (about one minute) and **Deploy to Azure Functions** (three to five minut
 including the remote build). The deploy job ends with a health check against
 `/api/health`; its log prints the JSON the endpoint returned.
 
-If the deploy job fails with HTTP 401 or 403 at the "Deploy" step, basic publishing
-credentials are disabled on the app. Enable them in Cloud Shell and rerun the job:
-
-```
-az resource update --resource-group rg-crmleads --name scm --namespace Microsoft.Web \
-  --resource-type basicPublishingCredentialsPolicies --parent sites/func-crmleads-kcm \
-  --set properties.allow=true
-```
+If the deploy job fails with HTTP 401 at the "Deploy" step, either basic publishing
+credentials are still disabled (Step 2.1) or the secret does not hold readable XML
+(Step 2.2). Fix the cause, then on the run page choose **Re-run jobs** > **Re-run failed
+jobs**.
 
 ## Step 4: create the alerts (Cloud Shell)
 
 ```
-cd ~/crm-lead-notifications && git pull
+cd ~/crm-lead-notifications && git pull     # or git clone ... in a fresh Cloud Shell
+az extension add -n application-insights   # first time only
 bash infra/create_monitoring.sh <your e-mail address>
 ```
+
+Without the extension installed first, the script stalls on a hidden "install it?"
+prompt; if that happens, press Ctrl+C, add the extension, and rerun.
 
 The script creates the action group `ag-crmleads` (e-mail) and two metric alerts
 (decision 18):
@@ -98,7 +106,7 @@ needed. The alerts are visible under **Monitor > Alerts > Alert rules** in the p
 
 This forces a dead-lettered message without touching real data. From the workstation,
 post a fresh test lead while the lookup is pointed at an address that does not exist, so
-the enricher raises on every delivery:
+the enricher raises on every delivery (the smoke test on 2026-10-11 posted two):
 
 ```
 # Cloud Shell: break the lookup on purpose
@@ -112,31 +120,33 @@ python scripts\send_test_event.py --fresh --sample 2
 What happens: ten minutes after receipt the enricher runs, the lookup raises
 `LookupError` after three in-invocation retries, the message is abandoned, and Service
 Bus redelivers it; after the fifth failed delivery (about two to three minutes in all)
-the message is dead-lettered. Within the next five to ten minutes two e-mails arrive:
+the message is dead-lettered (observed: both leads dead-lettered within two minutes of
+becoming visible). Within the next five to ten minutes two e-mails arrive:
 *failures* (fired on the first exception) and *deadletter*.
 
-Then recover:
+Then recover. The lookup is restored from Cloud Shell; the replay runs on the
+**workstation**, because Cloud Shell's managed identity cannot obtain Service Bus tokens
+(the script reports `AudienceNotSupported` there), whereas PowerShell is signed in as you.
 
 ```
-# Cloud Shell: restore the lookup, confirm, replay
+# Cloud Shell: restore the lookup and confirm
 az functionapp config appsettings set -g rg-crmleads -n func-crmleads-kcm --settings \
-  LEAD_OWNER_BASE_URL=https://dea-lead-owner.s3.us-east-1.amazonaws.com
-curl -s https://func-crmleads-kcm.azurewebsites.net/api/health
+  LEAD_OWNER_BASE_URL=https://dea-lead-owner.s3.us-east-1.amazonaws.com -o none
+sleep 30; curl -s https://func-crmleads-kcm.azurewebsites.net/api/health
+bash scripts/queue_status.sh                          # expect DeadLetter 2
 
-bash scripts/queue_status.sh                          # expect deadLetter 1
-pip install --user --quiet azure-servicebus azure-identity
-python3 scripts/replay_dead_letter.py --dry-run       # lists the one message
-python3 scripts/replay_dead_letter.py                 # replays it
-bash scripts/queue_status.sh                          # expect deadLetter 0, active 0 or 1
-```
-
-The replay script needs the Service Bus data roles for your own account (one time):
-
-```
+# Cloud Shell, one time: Service Bus data roles for your own account
 SB_ID=$(az servicebus namespace show -n sb-crmleads-kcm -g rg-crmleads --query id -o tsv)
 ME=$(az ad signed-in-user show --query id -o tsv)
 az role assignment create --assignee-object-id "$ME" --assignee-principal-type User \
-  --role "Azure Service Bus Data Owner" --scope "$SB_ID"
+  --role "Azure Service Bus Data Owner" --scope "$SB_ID" -o none
+
+# workstation (PowerShell, .venv active; az login if asked)
+python scripts\replay_dead_letter.py --dry-run       # lists the messages
+python scripts\replay_dead_letter.py                 # replays them
+
+# Cloud Shell
+bash scripts/queue_status.sh                          # expect DeadLetter 0, Scheduled 2
 ```
 
 After the replay the enricher processes the message once more with the real lookup. The
@@ -195,6 +205,6 @@ workflow does. Use it when GitHub Actions is unavailable or to deploy a branch.
 - [ ] First "CI and deploy" run green; deploy job's health check printed the JSON
 - [ ] `/api/health` still reports `lead_owner_stub_enabled: false` and the bucket URL
 - [ ] `ag-crmleads`, `alr-crmleads-failures`, `alr-crmleads-deadletter` listed by the script
-- [ ] Smoke test: both alert e-mails received; dead-lettered message replayed; queue clean
+- [ ] Smoke test: both alert e-mails received; dead-lettered messages replayed; queue clean
 - [ ] Traces for the smoke-test lead show no `Request URL` lines from the Azure SDK
 - [ ] README status: Phase 4 Complete; committed and pushed (the push deploys)
