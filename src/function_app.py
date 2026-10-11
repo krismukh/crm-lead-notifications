@@ -28,6 +28,12 @@ from leadflow.storage import AzureBlobStore
 app = func.FunctionApp()
 logger = logging.getLogger("leadflow.function_app")
 
+# The Azure SDKs log every request and response at INFO ("Request URL: ...", headers,
+# retry policy). Those lines are noise next to the leadflow JSON lines, so the SDK
+# loggers are raised to WARNING; leadflow itself stays at INFO.
+for _noisy in ("azure", "azure.core", "azure.identity", "azure.servicebus", "uamqp", "urllib3"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 
 @lru_cache(maxsize=1)
 def _settings() -> Settings:

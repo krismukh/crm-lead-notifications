@@ -23,7 +23,7 @@ The route is `POST /api/crm` with function-key authorization (`?code=`), per dec
 ```
 src/
   function_app.py            Azure Functions entry point (v2 model); adapts HTTP to leadflow
-  host.json                  Functions host settings; Service Bus autoComplete off for Phase 3
+  host.json                  Functions host settings; Service Bus autoComplete on (decision 15)
   requirements.txt           Runtime dependencies (pinned)
   local.settings.json.example  Template for local runs with Functions Core Tools
   leadflow/

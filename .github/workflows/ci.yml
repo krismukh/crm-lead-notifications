@@ -1,0 +1,85 @@
+name: CI and deploy
+
+# Every push and pull request: lint and unit tests.
+# Push to main, after the checks pass: zip-deploy src/ to func-crmleads-kcm with a
+# remote build, the same thing infra/deploy_function.sh does from Cloud Shell.
+#
+# One repository secret is required for the deploy job:
+#   AZURE_FUNCTIONAPP_PUBLISH_PROFILE   contents of the Function App publish profile
+# See docs/phase4_operations.md for how to obtain and store it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+  FUNCTION_APP_NAME: func-crmleads-kcm
+  PACKAGE_PATH: src
+
+jobs:
+  check:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            src/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Ruff (format check)
+        run: ruff format --check .
+
+      - name: Pytest
+        run: pytest -q
+
+  deploy:
+    name: Deploy to Azure Functions
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-${{ env.FUNCTION_APP_NAME }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Deploy (zip, remote build)
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          package: ${{ env.PACKAGE_PATH }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+          respect-funcignore: true
+
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/health"; then
+              echo; echo "healthy"; exit 0
+            fi
+            echo "not ready yet (attempt $i)"; sleep 20
+          done
+          echo "health endpoint did not answer" >&2; exit 1
