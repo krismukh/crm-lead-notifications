@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     concurrency:
-      group: deploy-${{ env.FUNCTION_APP_NAME }}
+      group: deploy-func-crmleads-kcm
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
