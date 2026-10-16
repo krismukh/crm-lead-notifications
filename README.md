@@ -7,6 +7,9 @@ and announced to the sales team in Slack.
 
 Author: Krishna C. Mukherjee
 
+Status: complete. Validated in production with 319 live leads on October 16, 2026;
+see `docs/validation_report.md`.
+
 ## Status
 
 | Phase | Scope | Status |
@@ -16,7 +19,7 @@ Author: Krishna C. Mukherjee
 | 2 | Webhook receiver function | Complete |
 | 3 | Enrichment and notification function | Complete |
 | 4 | CI/CD, observability, operations | Complete |
-| 5 | Webhook subscription and validation with test leads | In progress |
+| 5 | Webhook subscription and validation with live leads | Complete |
 
 ## Architecture
 

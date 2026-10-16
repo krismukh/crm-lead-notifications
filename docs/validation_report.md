@@ -1,7 +1,7 @@
-﻿# Validation Report
+# Validation Report
 
 Real-Time CRM Lead Processing and Notification System, Azure implementation.
-Author: Krishna C. Mukherjee. Status: draft, to be completed in Phase 5.
+Author: Krishna C. Mukherjee. Status: final, October 16, 2026.
 
 ## 1. Scope
 
@@ -9,8 +9,8 @@ This report records the evidence that the deployed pipeline meets the requiremen
 brief: a Close `lead.created` event is captured, held for ten minutes, enriched from the
 lead-owner lookup, stored as an enriched record, and announced in Slack with the seven
 required fields. Sections 2 and 5 are based on synthetic events posted with
-`scripts/send_test_event.py` during Phases 2 to 4; section 4 is based on test leads
-created in Close by the CRM team.
+`scripts/send_test_event.py` during Phases 2 to 4; section 4 is based on live leads
+delivered by the Close webhook subscription after it was created by the CRM team.
 
 ## 2. Pipeline validation with synthetic events (Phases 2 to 4)
 
@@ -49,16 +49,56 @@ and `test_slack_failure_raises_and_redelivery_resends_only_the_alert`.
 |Stale timestamp (unit test)|rejected|pass (`test_stale_timestamp_fails`)|2026-10-09|
 |Function key matches the Close subscription URL|identical|aligned: Azure key set to the value held by Close; signed event accepted afterwards (lead_testbbea253574bf520c)|2026-10-15|
 
-## 4. Validation with CRM test leads (Phase 5, Part C)
+## 4. Validation with live CRM leads (Phase 5, Part C)
 
-One row per test lead created in Close.
+The CRM team created the webhook subscription (`whsub_2GXBbdBw3LguBVFI7XKRHS`) on
+2026-10-13. Close began delivering events on 2026-10-16 at 01:31 UTC, after signature
+verification had been switched on (01:11 UTC), so every event below was signature-checked.
+No separate test leads were needed.
 
-|Created (UTC)|Lead id|Owner assigned at|Lookup result|Attempts|Receipt to alert|Fields verified (7/7)|Notes|
-|-|-|-|-|-|-|-|-|
-|||||||||
+Totals as of 2026-10-16 16:30 UTC (`az storage blob list` on `source` and `target`,
+excluding `lead_test*`):
 
-Field verification for each found lead: Name, Created Date, Label from the CRM event;
-Email, Lead Owner, Funnel from the lookup record; Lead ID in both.
+| Measure | Value |
+|---|---|
+| Events received from Close | 319 |
+| Enriched records written | 317 (2 in flight at the time of the count) |
+| Records with a matched owner (`target/`) | 316 |
+| Records announced as Unassigned (`target/unmatched/`) | 1 |
+| Dead-lettered messages | 0 |
+| Failed function invocations (alert `alr-crmleads-failures`) | 0 |
+| Receipt-to-alert latency, 317 leads (Application Insights) | min 10.0 min, median 10.0 min, max 25.0 min |
+
+Of the 316 matched leads, most were found on the first lookup (alert at 10 minutes);
+some needed one or two further attempts (15 or 20 minutes) because the owner file was
+published shortly after the ten-minute mark. The retry rule (decision 5) absorbed these
+without an Unassigned alert.
+
+Two records in full:
+
+| Field | Found lead | Unassigned lead |
+|---|---|---|
+| `lead_id` | `lead_blc0ddzoTs4au1Wovd43XAgsAJi1cYVlDtC5FfQG8hv` | `lead_d7cBuZPL9sYJxalo13RxYUwPNFtqs5aYe6uuUtD3nEn` |
+| `display_name` | Shrey Niraula | +1 614-673-4553 |
+| `date_created` | 2026-10-16T02:31:43 | 2026-10-14T23:23:09 |
+| `status_label` | Interested | Potential |
+| `lead_email` | nshrey53@gmail.com | (none) |
+| `lead_owner` | Kaisher von Wahl | Unassigned |
+| `funnel` | None (literal value in the lookup record; CRM custom field empty) | (none) |
+| `received_at_utc` | 2026-10-16T02:31:44 | 2026-10-16T01:34:57 |
+| `alert_sent_at_utc` | 2026-10-16T02:46:51 | 2026-10-16T01:59:58 |
+| `lookup_status` / `lookup_attempts` | found / 2 | not_found / 4 |
+| Receipt to alert | 15 min 7 s | 25 min 1 s |
+
+The Unassigned lead was created in Close on 2026-10-14 but its event was delivered on
+2026-10-16, some 26 hours later; by then its owner file had passed the bucket's one-day
+retention (decision 11). This was the only Unassigned lead among 317.
+
+Field verification (seven fields in Slack against the stored records) was performed on
+the found lead above and on two further alerts from 2026-10-16 16:10 and 16:13 UTC
+(`lead_1OiABLWX...`, owner Ninad Magdum, funnel YT DE ACADEMY Direct VSL;
+`lead_k2tuK6B7...`, owner Kaisher von Wahl): Name, Created Date, and Label matched the
+CRM event; Email, Lead Owner, and Funnel matched the lookup record; Lead ID matched both.
 
 ## 5. Operations validation (Phase 4)
 
@@ -76,7 +116,7 @@ Email, Lead Owner, Funnel from the lookup record; Lead ID in both.
 |-|-|
 |Webhook received and stored in real time|Section 2: receiver 200 within about 1.4 s; source record written|
 |Ten-minute delay before processing|Section 2: `scheduled_for_utc` = receipt + 10 min|
-|Lead-owner lookup by `{lead_id}.json`|Section 2 (stub) and section 4 (real bucket)|
+|Lead-owner lookup by `{lead_id}.json`|Section 2 (stub) and section 4 (real bucket, 316 matches)|
 |Enriched record stored|`target/crm_lead_enriched_{lead_id}.json`; schema in `docs/phase3_enricher.md`|
 |Alert with seven fields|Slack screenshots; `tests/test_lookup_notify.py::test_alert_has_seven_fields_in_order`|
 |Secrets not in code|Key Vault references; `.env` ignored; unit tests use fakes|
@@ -89,5 +129,11 @@ Email, Lead Owner, Funnel from the lookup record; Lead ID in both.
 sample's own date.
 * Owner files are retained in the bucket for one day; a message replayed later is
 processed as Unassigned (decision 11).
-* (Complete after Phase 5: signature verification status, any CRM-side constraints.)
+* Close may deliver an event well after the lead's `date_created` (26 hours in one observed
+case). Such a lead is announced as Unassigned because its owner file has expired; the
+alert's Created Date still shows the CRM value.
+* Some lookup records carry the literal string `None` as the funnel; the alert shows it as
+received. A future refinement could treat it as empty and fall back to the CRM field.
+* Signature verification is enabled; the receiver's function key was aligned to the value
+in the Close subscription URL (decision 22).
 

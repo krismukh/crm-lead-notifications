@@ -1,4 +1,4 @@
-﻿# Decision Log
+# Decision Log
 
 Design decisions for the Real-Time CRM Lead Processing and Notification System, in the
 order they were made. Items 1 through 9 correspond to Section 10 of the architecture
@@ -29,12 +29,13 @@ proposal (v1.0, October 7, 2026).
 |20|2026-10-11|Azure SDK loggers (`azure.*`, `uamqp`, `urllib3`) run at WARNING in the Function App; `leadflow` log lines stay at INFO.|The SDK request/response lines outnumbered the pipeline's own JSON lines in Phase 3 traces and carried no diagnostic value.|Decided|
 |21|2026-10-11|Alert e-mails go to an address verified with Azure Monitor (one-time code sent on first use). Until verification, alerts fire and are visible in the portal but no e-mail is sent.|Azure Monitor requirement observed during the Phase 4 smoke test: both alerts fired and resolved, the e-mails were withheld until the address was verified.|Noted|
 |22|2026-10-15|The receiver's function key was set to the value present in the Close subscription URL (the first character had been lost when the URL was shared), rather than asking the CRM team to edit the subscription. Signature verification was switched on the same day. |A key is an arbitrary string; aligning the Azure side avoids a round trip with the CRM team and leaves the subscription untouched.|Decided|
+|23|2026-10-16|Phase 5 validation uses live leads delivered by the production subscription instead of CRM-created test leads; the project is closed on that evidence.|Close delivered 319 events within 24 hours of the subscription becoming active, covering the found path (316) and the Unassigned path (1).|Decided|
 
 ## Open items
 
 |Item|Owner|Needed by|
 |-|-|-|
-|Test leads|CRM team|Phase 5|
+|(none)|||
 
 ## Resolved items
 
@@ -43,6 +44,7 @@ proposal (v1.0, October 7, 2026).
 |Public bucket access (AccessDenied on the sample file)|Bucket is public; files expire after one day. See item 11.|
 |Close webhook signature key|Received 2026-10-14; stored in Key Vault; `VERIFY_SIGNATURE=true` since 2026-10-15.|
 |Webhook subscription against the Function URL|Created by the CRM team 2026-10-13 (`whsub_2GXBbdBw3LguBVFI7XKRHS`, active).|
+|Test leads|Not needed: live leads began arriving 2026-10-16; 319 processed by 16:30 UTC. See `validation_report.md` section 4.|
 
 
 

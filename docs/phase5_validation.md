@@ -7,24 +7,25 @@ with that subscription, and a few test leads. Everything else is on our side.
 
 The phase runs in three parts, in whatever order the CRM team's replies allow:
 
-|Part|Trigger|Our work|
-|-|-|-|
-|A|now|Send the request to the CRM team|
-|B|signature key received|Store the key in Key Vault, switch verification on, prove it|
-|C|test leads sent|Observe each lead end to end, record the evidence, write the report|
+| Part | Trigger | Our work |
+|---|---|---|
+| A | now | Send the request to the CRM team |
+| B | signature key received | Store the key in Key Vault, switch verification on, prove it |
+| C | test leads sent | Observe each lead end to end, record the evidence, write the report |
 
 ## Part A: request to the CRM team
 
-Send the request to the CRM team (subscription, signature key, test leads). The URL is printed by `bash infra/deploy\_function.sh` (Cloud Shell) or assembled from `.env`:
-`FUNCTION\_URL` + `?code=` + `FUNCTION\_KEY`.
+Send the message in `docs/crm_team_request.md`, with the webhook URL filled in. The URL is
+printed by `bash infra/deploy_function.sh` (Cloud Shell) or assembled from `.env`:
+`FUNCTION_URL` + `?code=` + `FUNCTION_KEY`.
 
 What the CRM team does with it (for reference; Close documents this under *Webhooks*):
 they create a webhook subscription in Close whose `url` is ours and whose `events` are
-`object\_type = lead`, `action = created`. The subscription's `signature\_key` is shown
+`object_type = lead`, `action = created`. The subscription's `signature_key` is shown
 once, in the API response that creates the subscription. That is the key we need.
 
 While waiting, nothing is required. The receiver answers every request within a second,
-unsigned requests are accepted (`VERIFY\_SIGNATURE=false`), and the function key in the URL
+unsigned requests are accepted (`VERIFY_SIGNATURE=false`), and the function key in the URL
 is the access control (decision 6).
 
 ## Part B: switch signature verification on
@@ -33,40 +34,39 @@ The key is a hex string of 64 characters. Do not paste it into chat, a commit, o
 screenshot; put it straight into Key Vault.
 
 1. Store the key (Cloud Shell; the `read -s` prompt hides what you paste):
-
-```
+   ```
    read -s -p "Close signature key: " KEY; echo
    az keyvault secret set --vault-name kv-crmleads-kcm -n close-webhook-signature-key --value "$KEY" -o none
    unset KEY
    ```
-
 2. Restart the app so the Key Vault reference is re-read, then switch verification on:
-
-```
+   ```
    az functionapp restart -n func-crmleads-kcm -g rg-crmleads
-   az functionapp config appsettings set -g rg-crmleads -n func-crmleads-kcm --settings VERIFY\_SIGNATURE=true -o none
+   az functionapp config appsettings set -g rg-crmleads -n func-crmleads-kcm --settings VERIFY_SIGNATURE=true -o none
    sleep 30; curl -s https://func-crmleads-kcm.azurewebsites.net/api/health
    ```
-
-   Expected: `"verify\_signature": true`.
-
-3. Prove it from the workstation. Put the key in `.env` as `CLOSE\_WEBHOOK\_SIGNATURE\_KEY=<key>`
-(the file is ignored by git), then:
-
-```
-   python scripts\\send\_test\_event.py --fresh --sample 2 --sign      # expect HTTP 200 accepted
-   python scripts\\send\_test\_event.py --fresh --sample 2             # expect HTTP 401 invalid signature
+   Expected: `"verify_signature": true`.
+3. Prove it from the workstation. Put the key in `.env` as `CLOSE_WEBHOOK_SIGNATURE_KEY=<key>`
+   (the file is ignored by git), then:
    ```
-
+   python scripts\send_test_event.py --fresh --sample 2 --sign      # expect HTTP 200 accepted
+   python scripts\send_test_event.py --fresh --sample 2             # expect HTTP 401 invalid signature
+   ```
    The signed event goes through the pipeline normally (Unassigned after 25 minutes, since
-it is a synthetic lead). The unsigned one is rejected before anything is stored.
-
+   it is a synthetic lead). The unsigned one is rejected before anything is stored.
 4. Record the outcome in the validation report (section 3) and close the decision-log open
-item "Close webhook signature key".
+   item "Close webhook signature key".
 
 If the CRM team cannot supply the key, verification stays off and the function key remains
 the only control; say so in the report under limitations. The code path is unit tested
-either way (`tests/test\_verify.py`).
+either way (`tests/test_verify.py`).
+
+## Outcome (2026-10-16)
+
+Parts A and B were completed on 2026-10-13 and 2026-10-15. Part C was completed by live
+traffic: Close began delivering events on 2026-10-16 at 01:31 UTC and 319 leads were
+processed within the day, so no CRM-created test leads were needed. Results are in
+`validation_report.md`, section 4. The steps below remain valid for any future validation.
 
 ## Part C: validate with test leads
 
@@ -78,28 +78,28 @@ exercises the retry path with a late match.
 
 For each test lead, collect:
 
-|Evidence|Where|Command or query|
-|-|-|-|
-|Receipt time and HTTP 200|Application Insights|`requests` where `name == "fn\_webhook\_receiver"`|
-|Source record|`source/` container|`bash scripts/queue\_status.sh` (listing)|
-|Lookup result and attempts|Application Insights|trace query below, stages `lookup\_\*`|
-|Enriched record|`target/` container|`bash scripts/show\_target.sh <lead\_id> \[unmatched]`|
-|Alert|Slack `#new-lead-alerts`|screenshot; seven fields present|
-|Receipt-to-alert latency|Application Insights|latency query in `docs/phase4\_operations.md`|
+| Evidence | Where | Command or query |
+|---|---|---|
+| Receipt time and HTTP 200 | Application Insights | `requests` where `name == "fn_webhook_receiver"` |
+| Source record | `source/` container | `bash scripts/queue_status.sh` (listing) |
+| Lookup result and attempts | Application Insights | trace query below, stages `lookup_*` |
+| Enriched record | `target/` container | `bash scripts/show_target.sh <lead_id> [unmatched]` |
+| Alert | Slack `#new-lead-alerts` | screenshot; seven fields present |
+| Receipt-to-alert latency | Application Insights | latency query in `docs/phase4_operations.md` |
 
 Trace query for one lead:
 
 ```kusto
 traces
-| where message contains "<lead\_id>"
-| extend e = parse\_json(message)
+| where message contains "<lead_id>"
+| extend e = parse_json(message)
 | project timestamp, stage = tostring(e.stage), attempt = toint(e.attempt), action = tostring(e.action)
 | order by timestamp asc
 ```
 
-Expected timings: `event\_accepted` at T; `message\_received` at T + 10 min; for a found lead
-`alert\_sent` within seconds of that; for an Unassigned lead `lookup\_rescheduled` at T + 10,
-15, 20 and `lead\_unassigned` plus `alert\_sent` at T + 25.
+Expected timings: `event_accepted` at T; `message_received` at T + 10 min; for a found lead
+`alert_sent` within seconds of that; for an Unassigned lead `lookup_rescheduled` at T + 10,
+15, 20 and `lead_unassigned` plus `alert_sent` at T + 25.
 
 Check the content as well as the timing. For a found lead, every one of the seven fields
 in Slack must match the lookup record and the CRM event: Name and Created Date and Label
@@ -107,7 +107,7 @@ from the event, Email and Lead Owner and Funnel from the lookup record, Lead ID 
 
 ## Validation report
 
-`docs/validation\_report.md` is pre-filled with the evidence gathered in Phases 2 to 4
+`docs/validation_report.md` is pre-filled with the evidence gathered in Phases 2 to 4
 (synthetic leads). Add one row per CRM test lead in section 4 and complete sections 3, 5
 and 6. Export the report to PDF only if the program asks for one; the Markdown file in
 the repository is the deliverable.
@@ -118,17 +118,16 @@ The hand-off is the repository itself. The README is the entry point; the runboo
 every operation; the decision log records why things are as they are. Two items should be
 stated plainly in the final message to the SME:
 
-* The alert's Created Date is the CRM's `date\_created`, not the time of processing.
-* Owner files are retained for one day; a message replayed later than that is processed as
-Unassigned (decision 11).
+- The alert's Created Date is the CRM's `date_created`, not the time of processing.
+- Owner files are retained for one day; a message replayed later than that is processed as
+  Unassigned (decision 11).
 
 ## Exit criteria
 
-* \[ ] Request sent to the CRM team (Part A)
-* \[ ] Signature key in Key Vault; `VERIFY\_SIGNATURE=true`; signed event accepted, unsigned rejected (Part B)
-* \[ ] At least one CRM test lead announced with a real owner (found path)
-* \[ ] At least one CRM test lead announced as Unassigned, or the retry path shown with a late match
-* \[ ] Seven fields verified against source data for every test lead
-* \[ ] `docs/validation\_report.md` completed; decision-log open items closed
-* \[ ] README status: Phase 5 Complete; committed and pushed; hand-off message sent
-
+- [x] Request sent to the CRM team (Part A)
+- [x] Signature key in Key Vault; `VERIFY_SIGNATURE=true`; signed event accepted, unsigned rejected (Part B)
+- [x] At least one CRM lead announced with a real owner (found path): 316
+- [x] At least one CRM lead announced as Unassigned: 1; retry path with late match: observed
+- [x] Seven fields verified against source data for three leads
+- [x] `docs/validation_report.md` completed; decision-log open items closed
+- [x] README status: Phase 5 Complete; committed and pushed; hand-off message sent
